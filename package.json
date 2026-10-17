@@ -1,0 +1,70 @@
+{
+  "name": "node-process-utils",
+  "version": "1.0.0",
+  "description": "The node-process-utils package runs child processes with bounded time and output, and stops the process trees it owns: graceful then forced process-group shutdown on POSIX, and taskkill on Windows. Exit codes are returned rather than thrown, so callers decide which ones are acceptable.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=24"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "ts-lib-builder --tsconfig=tsconfig.build.json",
+    "check:pack": "node scripts/check-pack.mjs",
+    "format:check": "prettier --check src scripts package.json .github/workflows/publish.yml",
+    "lint": "eslint src --ext .ts",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:integration": "vitest run --config vitest.test-integration.config.ts",
+    "test:unit": "vitest run --config vitest.test-unit.config.ts",
+    "typecheck": "tsc --noEmit --project tsconfig.build.json",
+    "verify": "npm test && npm run typecheck && npm run lint && npm run format:check"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jesusgraterol/node-process-utils.git"
+  },
+  "keywords": [
+    "node",
+    "process",
+    "child-process",
+    "spawn",
+    "process-group",
+    "timeout",
+    "abort",
+    "kill",
+    "typescript"
+  ],
+  "author": "Jesus Graterol",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jesusgraterol/node-process-utils/issues"
+  },
+  "homepage": "https://github.com/jesusgraterol/node-process-utils#readme",
+  "dependencies": {
+    "error-message-utils": "^1.2.14"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@typescript-eslint/eslint-plugin": "7.18.0",
+    "@typescript-eslint/parser": "7.18.0",
+    "eslint-config-airbnb-typescript": "18.0.0",
+    "eslint-config-prettier": "10.1.5",
+    "prettier": "3.6.2",
+    "ts-lib-builder": "1.0.8",
+    "typescript": "5.7.2",
+    "vitest": "4.1.8"
+  }
+}
