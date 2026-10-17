@@ -1,0 +1,131 @@
+name: Check and publish to npm
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.package.outputs.version }}
+      tarball: ${{ steps.pack.outputs.tarball }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Verify the package
+        run: npm run verify
+
+      - name: Build the package
+        run: npm run build
+
+      - name: Check the packed files
+        run: npm run check:pack
+
+      - name: Read the package version
+        id: package
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Pack the tarball
+        id: pack
+        if: github.event_name == 'push'
+        run: echo "tarball=$(npm pack --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the tarball
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v7
+        with:
+          name: package
+          path: ${{ steps.pack.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Download the tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: package
+
+      - name: Check whether the version is already published
+        id: registry
+        env:
+          PACKAGE_VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          if output=$(npm view "node-process-utils@$PACKAGE_VERSION" version 2>&1); then
+            if [ -n "$output" ]; then
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "exists=false" >> "$GITHUB_OUTPUT"
+            fi
+          elif printf '%s' "$output" | grep -q 'E404'; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            printf '%s\n' "$output"
+            exit 1
+          fi
+
+      - name: Publish the verified tarball
+        if: steps.registry.outputs.exists == 'false'
+        env:
+          TARBALL: ${{ needs.check.outputs.tarball }}
+        run: npm publish "./$TARBALL"
+
+  tag:
+    needs: [check, publish]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Create the version tag
+        env:
+          PACKAGE_VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          tag="v$PACKAGE_VERSION"
+          if [ -n "$(git ls-remote --tags origin "refs/tags/$tag")" ]; then
+            echo "The tag $tag already exists."
+            exit 0
+          fi
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "refs/tags/$tag"
