@@ -1,6 +1,6 @@
 {
   "name": "node-process-utils",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The node-process-utils package runs child processes with bounded time and output, and stops the process trees it owns: graceful then forced process-group shutdown on POSIX, and taskkill on Windows. Exit codes are returned rather than thrown, so callers decide which ones are acceptable.",
   "type": "module",
   "main": "./dist/index.js",
